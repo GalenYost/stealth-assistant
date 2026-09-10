@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
@@ -40,18 +41,60 @@ impl Default for AppConfig {
 
 impl AppConfig {
     pub fn save(&self) -> Result<(), String> {
-        let path = "stealth_config.json";
+        let path = config_path();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
         let json = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
-        std::fs::write(path, json).map_err(|e| e.to_string())
+        std::fs::write(&path, json).map_err(|e| e.to_string())
     }
 
     pub fn load() -> Self {
-        let path = "stealth_config.json";
-        if let Ok(data) = std::fs::read_to_string(path) {
+        let path = config_path();
+        if let Ok(data) = std::fs::read_to_string(&path) {
             if let Ok(cfg) = serde_json::from_str(&data) {
                 return cfg;
             }
         }
+
+        let legacy = PathBuf::from("stealth_config.json");
+        if legacy.exists() && legacy != path {
+            if let Ok(data) = std::fs::read_to_string(&legacy) {
+                if let Ok(cfg) = serde_json::from_str(&data) {
+                    let _ = cfg.save();
+                    return cfg;
+                }
+            }
+        }
+
         Self::default()
     }
+}
+
+fn config_path() -> PathBuf {
+    config_dir()
+        .map(|dir| dir.join("stealth-assistant").join("stealth_config.json"))
+        .unwrap_or_else(|| PathBuf::from("stealth_config.json"))
+}
+
+#[cfg(target_os = "windows")]
+fn config_dir() -> Option<PathBuf> {
+    std::env::var_os("APPDATA").map(PathBuf::from)
+}
+
+#[cfg(target_os = "macos")]
+fn config_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .map(|home| home.join("Library").join("Application Support"))
+}
+
+#[cfg(target_os = "linux")]
+fn config_dir() -> Option<PathBuf> {
+    if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
+        return Some(PathBuf::from(xdg));
+    }
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .map(|home| home.join(".config"))
 }

@@ -33,7 +33,17 @@ cargo build --release
 
 ## Configuration
 
-Configuration is stored in `stealth_config.json` in the working directory (auto-created with defaults on first run). Options:
+Configuration is stored in `stealth_config.json` in the OS-standard config directory (auto-created with defaults on first run):
+
+| Platform | Location |
+| --- | --- |
+| Windows | `%APPDATA%\stealth-assistant\stealth_config.json` |
+| macOS | `~/Library/Application Support/stealth-assistant/stealth_config.json` |
+| Linux | `$XDG_CONFIG_HOME/stealth-assistant/stealth_config.json` or `~/.config/stealth-assistant/stealth_config.json` |
+
+On first run after upgrading, a pre-existing `stealth_config.json` in the working directory is migrated to the new location automatically.
+
+Options:
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
