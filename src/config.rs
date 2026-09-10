@@ -60,7 +60,7 @@ impl AppConfig {
         let legacy = PathBuf::from("stealth_config.json");
         if legacy.exists() && legacy != path {
             if let Ok(data) = std::fs::read_to_string(&legacy) {
-                if let Ok(cfg) = serde_json::from_str(&data) {
+if let Ok(cfg) = serde_json::from_str::<AppConfig>(&data) {
                     let _ = cfg.save();
                     return cfg;
                 }
