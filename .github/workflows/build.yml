@@ -70,6 +70,9 @@ jobs:
             cmake \
             pkg-config \
             libasound2-dev \
+            libpipewire-0.3-dev \
+            libspa-0.2-dev \
+            libdbus-1-dev \
             libx11-dev \
             libxcb-shape0-dev \
             libxcb-xfixes0-dev \
