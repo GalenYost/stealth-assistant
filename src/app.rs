@@ -39,10 +39,9 @@ impl StealthApp {
         set_modern_theme(&cc.egui_ctx);
 
         let window_mgr = cc.window_handle().ok().map(|handle| {
-            let raw = handle.into();
+            let raw: raw_window_handle::RawWindowHandle = handle.into();
             crate::platform::apply_stealth(raw);
-            let win_id = crate::platform::extract_x11_window_id(raw);
-            WindowManager::new(win_id)
+            WindowManager::new(raw)
         });
 
         Self {

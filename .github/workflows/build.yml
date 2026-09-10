@@ -112,10 +112,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          merge-multiple: true
+
+      - name: Collect binaries
+        run: |
+          mkdir -p release
+          find artifacts -type f -name "stealth-assistant*" -exec cp {} release/ \;
+          ls -la release/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*
+          files: release/*
           generate_release_notes: true

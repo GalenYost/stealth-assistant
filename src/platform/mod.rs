@@ -1,17 +1,30 @@
 #[cfg(target_os = "linux")]
 pub mod linux;
-#[cfg(target_os = "linux")]
-pub use linux::*;
-
 #[cfg(target_os = "windows")]
 pub mod windows;
-#[cfg(target_os = "windows")]
-pub use windows::WindowManager;
-
 #[cfg(target_os = "macos")]
 pub mod macos;
 
 use raw_window_handle::RawWindowHandle;
+
+pub struct WindowManager {
+    pub handle: RawWindowHandle,
+    pub is_click_through: bool,
+}
+
+impl WindowManager {
+    pub fn new(handle: RawWindowHandle) -> Self {
+        Self {
+            handle,
+            is_click_through: false,
+        }
+    }
+
+    pub fn set_click_through(&mut self, click_through: bool) {
+        self.is_click_through = click_through;
+        apply_click_through(self.handle, click_through);
+    }
+}
 
 pub fn apply_stealth(handle: RawWindowHandle) {
     #[cfg(target_os = "windows")]
