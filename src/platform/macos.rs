@@ -3,10 +3,10 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use objc2::ffi::{object_getClass, object_setClass};
-use objc2::foundation::NSPoint;
 use objc2::runtime::{AnyClass, AnyObject, ClassBuilder, Sel};
 use objc2::{msg_send, sel};
 use objc2_app_kit::{NSWindow, NSWindowSharingType};
+use objc2_foundation::NSPoint;
 
 static STRIP_POINTS: AtomicI32 = AtomicI32::new(0);
 static HIT_TEST_CLASS: OnceLock<&'static AnyClass> = OnceLock::new();
@@ -49,7 +49,7 @@ fn install_hit_test_subclass(ns_view_ptr: *mut c_void) {
         return;
     }
     unsafe {
-        let superclass = object_getClass(ns_view_ptr);
+        let superclass = object_getClass(ns_view_ptr as *const AnyObject);
         if superclass.is_null() {
             return;
         }
@@ -60,12 +60,12 @@ fn install_hit_test_subclass(ns_view_ptr: *mut c_void) {
         });
         builder.add_method(
             sel!(hitTest:),
-            hit_test as extern "C-unwind" fn(&AnyObject, Sel, NSPoint) -> Option<&AnyObject>,
+            hit_test as unsafe extern "C-unwind" fn(_, _, _) -> _,
         );
         let class: &'static AnyClass = builder.register();
         let _ = HIT_TEST_CLASS.set(class);
 
-        object_setClass(ns_view_ptr, class as *const AnyClass);
+        object_setClass(ns_view_ptr as *mut AnyObject, class as *const AnyClass);
     }
 }
 

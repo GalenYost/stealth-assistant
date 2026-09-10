@@ -31,15 +31,19 @@ pub fn set_click_through(hwnd_ptr: isize, enable: bool, topbar_height: f32, pixe
     };
     STRIP_PIXELS.store(strip_pixels, Ordering::Relaxed);
 
+    let subclass =
+        subclass_wnd_proc as unsafe extern "system" fn(HWND, u32, WPARAM, LPARAM) -> LRESULT;
+    let subclass_ptr = subclass as *const () as isize;
+
     unsafe {
         let hwnd = HWND(hwnd_ptr as *mut _);
         let current = GetWindowLongPtrW(hwnd, GWLP_WNDPROC);
         if current == 0 {
             return;
         }
-        if current != subclass_wnd_proc as isize {
+        if current != subclass_ptr {
             ORIGINAL_WNDPROC.store(current, Ordering::Relaxed);
-            SetWindowLongPtrW(hwnd, GWLP_WNDPROC, subclass_wnd_proc as isize);
+            SetWindowLongPtrW(hwnd, GWLP_WNDPROC, subclass_ptr);
         }
     }
 }
@@ -54,14 +58,14 @@ unsafe extern "system" fn subclass_wnd_proc(
         let strip_pixels = STRIP_PIXELS.load(Ordering::Relaxed);
         if strip_pixels > 0 {
             let mut rect = RECT::default();
-            if GetWindowRect(hwnd, &mut rect).is_ok() {
+            if unsafe { GetWindowRect(hwnd, &mut rect).is_ok() } {
                 let cursor_y = ((lparam.0 as usize >> 16) & 0xFFFF) as isize;
                 if cursor_y > rect.top as isize + strip_pixels {
-                    return LRESULT(HTTRANSPARENT.0 as isize);
+                    return LRESULT(HTTRANSPARENT as isize);
                 }
-                return LRESULT(HTCLIENT.0 as isize);
+                return LRESULT(HTCLIENT as isize);
             }
         }
     }
-    DefWindowProcW(hwnd, msg, wparam, lparam)
+    unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
 }
