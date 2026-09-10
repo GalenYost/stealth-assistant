@@ -1,0 +1,32 @@
+[package]
+name = "stealth-assistant"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cpal = "0.18.2"
+eframe = "0.36.2"
+global-hotkey = "0.8.0"
+raw-window-handle = "0.6.2"
+reqwest = { version = "0.13.5", features = ["json", "stream"] }
+ringbuf = "0.5.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["full"] }
+whisper-rs = "0.16.0"
+xcap = "0.9.8"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62.2", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi"
+]}
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+objc2-app-kit = "0.3.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ashpd = "0.13.13"
+x11rb = { version = "0.14.0", features = ["shape"] }
