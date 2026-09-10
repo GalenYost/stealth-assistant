@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 cpal = "0.18.2"
 eframe = "0.36.2"
 global-hotkey = "0.8.0"
+log = "0.4"
 raw-window-handle = "0.6.2"
 reqwest = { version = "0.13.5", features = ["json", "stream"] }
 ringbuf = "0.5.1"

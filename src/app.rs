@@ -101,12 +101,11 @@ impl StealthApp {
 
                 ui.add_space(4.0);
                 ui.vertical(|ui| {
-                    let send_btn = egui::Button::new(
-                        egui::RichText::new("Send").size(14.0).strong(),
-                    )
-                    .min_size(egui::vec2(72.0, 30.0))
-                    .fill(ui.visuals().selection.bg_fill)
-                    .corner_radius(6.0);
+                    let send_btn =
+                        egui::Button::new(egui::RichText::new("Send").size(14.0).strong())
+                            .min_size(egui::vec2(72.0, 30.0))
+                            .fill(ui.visuals().selection.bg_fill)
+                            .corner_radius(6.0);
 
                     if ui.add_enabled(!self.is_generating, send_btn).clicked() {
                         self.send_prompt(ui.ctx().clone());
@@ -124,11 +123,9 @@ impl StealthApp {
             let frame = egui::Frame::default()
                 .corner_radius(8.0)
                 .inner_margin(egui::Margin::symmetric(10, 10))
-                .fill(
-                    egui::Color32::from_black_alpha(
-                        (255.0 * (self.config.opacity * 0.35)) as u8,
-                    ),
-                );
+                .fill(egui::Color32::from_black_alpha(
+                    (255.0 * (self.config.opacity * 0.35)) as u8,
+                ));
             frame.show(ui, |ui| {
                 egui::ScrollArea::vertical()
                     .stick_to_bottom(true)
@@ -203,18 +200,14 @@ impl StealthApp {
             match self.config.selected_provider.as_str() {
                 "Gemini" => {
                     ui.label("Gemini API Key:");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.config.gemini_key).password(true),
-                    );
+                    ui.add(egui::TextEdit::singleline(&mut self.config.gemini_key).password(true));
                     ui.add_space(6.0);
                     ui.label("Model:");
                     ui.text_edit_singleline(&mut self.config.gemini_model);
                 }
                 "OpenAI" => {
                     ui.label("OpenAI API Key:");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.config.openai_key).password(true),
-                    );
+                    ui.add(egui::TextEdit::singleline(&mut self.config.openai_key).password(true));
                     ui.add_space(6.0);
                     ui.label("Model:");
                     ui.text_edit_singleline(&mut self.config.openai_model);
@@ -230,9 +223,7 @@ impl StealthApp {
                 }
                 "Claude" => {
                     ui.label("Claude API Key:");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.config.claude_key).password(true),
-                    );
+                    ui.add(egui::TextEdit::singleline(&mut self.config.claude_key).password(true));
                     ui.add_space(6.0);
                     ui.label("Model:");
                     ui.text_edit_singleline(&mut self.config.claude_model);
@@ -271,8 +262,35 @@ impl StealthApp {
                 &mut self.config.enable_stealth_on_launch,
                 "Hide from Screen Recorders on Startup",
             );
-            ui.checkbox(&mut self.config.is_click_through, "Start in Click-Through mode");
+            ui.checkbox(
+                &mut self.config.is_click_through,
+                "Start in Click-Through mode",
+            );
             ui.add_space(10.0);
+
+            ui.add_space(6.0);
+            ui.label(
+                egui::RichText::new("Diagnostics")
+                    .size(15.0)
+                    .strong()
+                    .color(ui.visuals().selection.bg_fill),
+            );
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.label("Log file:");
+                ui.add_sized(
+                    [180.0, 22.0],
+                    egui::TextEdit::singleline(&mut self.config.log_file_name),
+                );
+            });
+            ui.weak(
+                crate::logging::log_path(&self.config.log_file_name)
+                    .display()
+                    .to_string(),
+            );
+            ui.weak("Log file name takes effect on next launch.");
+            ui.add_space(10.0);
+
             if ui
                 .button(egui::RichText::new("💾 Save Settings").strong())
                 .clicked()
@@ -307,6 +325,16 @@ impl StealthApp {
                     system_prompt: config.system_prompt,
                     user_prompt: prompt,
                 };
+
+                let provider = config.selected_provider.clone();
+                let model = match config.selected_provider.as_str() {
+                    "Gemini" => config.gemini_model.clone(),
+                    "OpenAI" => config.openai_model.clone(),
+                    "DeepSeek" => config.deepseek_model.clone(),
+                    "Claude" => config.claude_model.clone(),
+                    _ => String::from("unknown"),
+                };
+                log::info!("request sent -> provider={provider}, model={model}");
 
                 match config.selected_provider.as_str() {
                     "Gemini" => {
@@ -348,6 +376,11 @@ impl StealthApp {
             }
             .await;
 
+            match &result {
+                Ok(_) => log::info!("response stream completed"),
+                Err(err) => log::error!("request failed: {err}"),
+            }
+
             if let Err(err) = result {
                 let _ = tx.send(format!("\n[Error: {}]", err));
             }
@@ -381,8 +414,9 @@ impl eframe::App for StealthApp {
             ui.ctx().request_repaint();
         }
 
-        let frame = egui::Frame::default()
-            .fill(egui::Color32::from_black_alpha((255.0 * self.config.opacity) as u8));
+        let frame = egui::Frame::default().fill(egui::Color32::from_black_alpha(
+            (255.0 * self.config.opacity) as u8,
+        ));
 
         egui::CentralPanel::default().frame(frame).show(ui, |ui| {
             self.render_top_bar(ui);
@@ -408,7 +442,8 @@ fn set_modern_theme(ctx: &egui::Context) {
     visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(6);
     visuals.widgets.active.corner_radius = egui::CornerRadius::same(6);
     visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::same(6);
-    visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(45, 50, 60));
+    visuals.widgets.inactive.bg_stroke =
+        egui::Stroke::new(1.0, egui::Color32::from_rgb(45, 50, 60));
     visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(70, 76, 90));
     visuals.widgets.inactive.weak_bg_fill = egui::Color32::from_rgb(28, 32, 42);
     visuals.widgets.hovered.weak_bg_fill = egui::Color32::from_rgb(34, 39, 50);

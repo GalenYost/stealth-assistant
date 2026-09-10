@@ -57,6 +57,7 @@ Options:
 | `claude_key` | `string` | `""` | Anthropic Claude API key |
 | `claude_model` | `string` | `"claude-3-5-sonnet-20240620"` | Claude model id |
 | `system_prompt` | `string` | *(see below)* | System context sent with every request |
+| `log_file_name` | `string` | `"stealth-assistant.log"` | Filename of the log file (in the config directory) |
 | `opacity` | `float` | `0.90` | Window opacity (0.0–1.0) |
 | `is_click_through` | `bool` | `false` | Start with click-through enabled |
 | `enable_stealth_on_launch` | `bool` | `true` | Hide from screen recorders on startup |
@@ -71,6 +72,10 @@ No filler, no fluff, no unnecessary greetings. Always give technically correct, 
 answers, not generic or surface-level responses. Think before answering. Never use bullet points, markdown, or any
 formatting. Respond only in plain conversational text, as if speaking directly to someone in an interview.
 ```
+
+## Logging
+
+The app writes a timestamped log to `stealth-assistant.log` in the same OS-standard directory as the config file. It records startup info and one line per chat request (provider, model) plus any streaming errors. The log filename can be changed in the **Settings → Diagnostics** tab (applies on next launch).
 
 ## Usage
 

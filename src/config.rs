@@ -12,8 +12,9 @@ pub struct AppConfig {
     pub gemini_model: String,
     pub claude_key: String,
     pub claude_model: String,
-    
+
     pub system_prompt: String,
+    pub log_file_name: String,
     pub opacity: f32,
     pub is_click_through: bool,
     pub enable_stealth_on_launch: bool,
@@ -32,6 +33,7 @@ impl Default for AppConfig {
             claude_key: String::new(),
             claude_model: "claude-3-5-sonnet-20240620".to_string(),
             system_prompt: "You are an expert AI assistant. Keep responses as short as possible while still being complete and informative. No filler, no fluff, no unnecessary greetings. Always give technically correct, precise, and genuinely intelligent answers, not generic or surface-level responses. Think before answering. Never use bullet points, markdown, or any formatting. Respond only in plain conversational text, as if speaking directly to someone in an interview.".to_string(),
+            log_file_name: "stealth-assistant.log".to_string(),
             opacity: 0.90,
             is_click_through: false,
             enable_stealth_on_launch: true,
@@ -60,7 +62,7 @@ impl AppConfig {
         let legacy = PathBuf::from("stealth_config.json");
         if legacy.exists() && legacy != path {
             if let Ok(data) = std::fs::read_to_string(&legacy) {
-if let Ok(cfg) = serde_json::from_str::<AppConfig>(&data) {
+                if let Ok(cfg) = serde_json::from_str::<AppConfig>(&data) {
                     let _ = cfg.save();
                     return cfg;
                 }
@@ -78,19 +80,19 @@ fn config_path() -> PathBuf {
 }
 
 #[cfg(target_os = "windows")]
-fn config_dir() -> Option<PathBuf> {
+pub(crate) fn config_dir() -> Option<PathBuf> {
     std::env::var_os("APPDATA").map(PathBuf::from)
 }
 
 #[cfg(target_os = "macos")]
-fn config_dir() -> Option<PathBuf> {
+pub(crate) fn config_dir() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .map(PathBuf::from)
         .map(|home| home.join("Library").join("Application Support"))
 }
 
 #[cfg(target_os = "linux")]
-fn config_dir() -> Option<PathBuf> {
+pub(crate) fn config_dir() -> Option<PathBuf> {
     if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
         return Some(PathBuf::from(xdg));
     }

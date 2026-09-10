@@ -1,6 +1,6 @@
 use super::{LlmClient, PromptRequest};
 use reqwest::Client;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
 pub struct GeminiClient {
@@ -44,7 +44,9 @@ impl LlmClient for GeminiClient {
                 if line.starts_with("data: ") {
                     let data = &line[6..];
                     if let Ok(parsed) = serde_json::from_str::<Value>(data) {
-                        if let Some(text) = parsed["candidates"][0]["content"]["parts"][0]["text"].as_str() {
+                        if let Some(text) =
+                            parsed["candidates"][0]["content"]["parts"][0]["text"].as_str()
+                        {
                             let _ = tx.send(text.to_string());
                         }
                     }
