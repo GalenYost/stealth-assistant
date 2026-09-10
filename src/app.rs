@@ -12,6 +12,8 @@ use crate::llm::openai::OpenAiClient;
 use crate::llm::{LlmClient, PromptRequest};
 use crate::platform::WindowManager;
 
+pub const TITLEBAR_HEIGHT: f32 = 38.0;
+
 #[derive(PartialEq)]
 pub enum ActiveTab {
     Chat,
@@ -41,7 +43,10 @@ impl StealthApp {
         let window_mgr = cc.window_handle().ok().map(|handle| {
             let raw: raw_window_handle::RawWindowHandle = handle.into();
             crate::platform::apply_stealth(raw);
-            WindowManager::new(raw)
+            let mut wm = WindowManager::new(raw);
+            wm.set_topbar_height(TITLEBAR_HEIGHT, cc.egui_ctx.pixels_per_point());
+            wm.set_click_through(config.is_click_through);
+            wm
         });
 
         Self {
@@ -57,30 +62,75 @@ impl StealthApp {
     }
 
     fn render_top_bar(&mut self, ui: &mut egui::Ui) {
-        ui.add_space(6.0);
-        ui.horizontal(|ui| {
+        if let Some(wm) = self.window_mgr.as_mut() {
+            wm.set_topbar_height(TITLEBAR_HEIGHT, ui.pixels_per_point());
+        }
+
+        let bar_size = egui::vec2(ui.available_width(), TITLEBAR_HEIGHT);
+        let (bar_rect, drag_response) = ui.allocate_exact_size(bar_size, egui::Sense::drag());
+
+        if drag_response.drag_started_by(egui::PointerButton::Primary) {
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
+        }
+
+        let painter = ui.painter();
+        painter.rect_filled(bar_rect, 8.0, ui.visuals().faint_bg_color);
+        painter.line_segment(
+            [
+                egui::pos2(bar_rect.left(), bar_rect.bottom() + 0.5),
+                egui::pos2(bar_rect.right(), bar_rect.bottom() + 0.5),
+            ],
+            ui.visuals().widgets.inactive.bg_stroke.clone(),
+        );
+
+        let mut bar = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(bar_rect.shrink(5.0))
+                .layout(egui::Layout::left_to_right(egui::Align::Center)),
+        );
+
+        bar.horizontal(|ui| {
+            ui.add_space(4.0);
+
+            if ui
+                .add(egui::Button::new(egui::RichText::new("–").size(15.0).strong()).frame(false))
+                .on_hover_text("Minimize")
+                .clicked()
+            {
+                ui.ctx()
+                    .send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+            }
+
+            if ui
+                .add(egui::Button::new(egui::RichText::new("✕").size(14.0).strong()).frame(false))
+                .on_hover_text("Close")
+                .clicked()
+            {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+
+            ui.add_space(10.0);
             ui.selectable_value(&mut self.active_tab, ActiveTab::Chat, "💬 Assistant");
             ui.selectable_value(&mut self.active_tab, ActiveTab::Settings, "⚙ Settings");
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if let Some(ref mut wm) = self.window_mgr {
                     let mut click_through = wm.is_click_through;
-                    ui.add_space(8.0);
+                    ui.add_space(4.0);
                     if ui.checkbox(&mut click_through, "Click-Through").changed() {
                         wm.set_click_through(click_through);
                         self.config.is_click_through = click_through;
+                        let _ = self.config.save();
                     }
                 }
 
+                ui.add_space(8.0);
                 ui.label(
                     egui::RichText::new(format!("{}", self.config.selected_provider))
                         .color(ui.visuals().weak_text_color()),
                 );
             });
         });
-        ui.add_space(6.0);
-        ui.separator();
-        ui.add_space(4.0);
     }
 
     fn render_chat_tab(&mut self, ui: &mut egui::Ui) {

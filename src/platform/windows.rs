@@ -1,8 +1,13 @@
-use windows::Win32::Foundation::HWND;
+use std::sync::atomic::{AtomicIsize, Ordering};
+
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GWL_EXSTYLE, GetWindowLongPtrW, SetWindowDisplayAffinity, SetWindowLongPtrW,
-    WDA_EXCLUDEFROMCAPTURE, WS_EX_LAYERED, WS_EX_TRANSPARENT,
+    DefWindowProcW, GWLP_WNDPROC, GetWindowLongPtrW, GetWindowRect, HTCLIENT, HTTRANSPARENT,
+    SetWindowDisplayAffinity, SetWindowLongPtrW, WDA_EXCLUDEFROMCAPTURE, WM_NCHITTEST,
 };
+
+static STRIP_PIXELS: AtomicIsize = AtomicIsize::new(0);
+static ORIGINAL_WNDPROC: AtomicIsize = AtomicIsize::new(0);
 
 pub fn set_stealth(hwnd_ptr: isize) {
     if hwnd_ptr == 0 {
@@ -14,20 +19,49 @@ pub fn set_stealth(hwnd_ptr: isize) {
     }
 }
 
-pub fn set_click_through(hwnd_ptr: isize, enable: bool) {
+pub fn set_click_through(hwnd_ptr: isize, enable: bool, topbar_height: f32, pixels_per_point: f32) {
     if hwnd_ptr == 0 {
         return;
     }
+
+    let strip_pixels = if enable {
+        (topbar_height * pixels_per_point).round().max(1.0) as isize
+    } else {
+        0
+    };
+    STRIP_PIXELS.store(strip_pixels, Ordering::Relaxed);
+
     unsafe {
         let hwnd = HWND(hwnd_ptr as *mut _);
-        let current_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
-
-        let new_style = if enable {
-            current_style | WS_EX_TRANSPARENT.0 | WS_EX_LAYERED.0
-        } else {
-            current_style & !WS_EX_TRANSPARENT.0
-        };
-
-        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_style as isize);
+        let current = GetWindowLongPtrW(hwnd, GWLP_WNDPROC);
+        if current == 0 {
+            return;
+        }
+        if current != subclass_wnd_proc as isize {
+            ORIGINAL_WNDPROC.store(current, Ordering::Relaxed);
+            SetWindowLongPtrW(hwnd, GWLP_WNDPROC, subclass_wnd_proc as isize);
+        }
     }
+}
+
+unsafe extern "system" fn subclass_wnd_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    if msg == WM_NCHITTEST {
+        let strip_pixels = STRIP_PIXELS.load(Ordering::Relaxed);
+        if strip_pixels > 0 {
+            let mut rect = RECT::default();
+            if GetWindowRect(hwnd, &mut rect).is_ok() {
+                let cursor_y = ((lparam.0 as usize >> 16) & 0xFFFF) as isize;
+                if cursor_y > rect.top as isize + strip_pixels {
+                    return LRESULT(HTTRANSPARENT.0 as isize);
+                }
+                return LRESULT(HTCLIENT.0 as isize);
+            }
+        }
+    }
+    DefWindowProcW(hwnd, msg, wparam, lparam)
 }

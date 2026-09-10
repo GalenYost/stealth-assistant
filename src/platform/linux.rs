@@ -29,7 +29,12 @@ pub fn set_stealth(x11_window: Option<u32>) {
     }
 }
 
-pub fn set_click_through(x11_window: Option<u32>, enable: bool) {
+pub fn set_click_through(
+    x11_window: Option<u32>,
+    enable: bool,
+    topbar_height: f32,
+    pixels_per_point: f32,
+) {
     let window_id = match x11_window {
         Some(id) => id as Window,
         None => return,
@@ -37,6 +42,7 @@ pub fn set_click_through(x11_window: Option<u32>, enable: bool) {
 
     if let Ok((conn, _)) = RustConnection::connect(None) {
         if enable {
+            let strip_height_px = (topbar_height * pixels_per_point).round().max(1.0) as u16;
             let _ = conn.shape_rectangles(
                 shape::SO::SET,
                 shape::SK::INPUT,
@@ -44,7 +50,12 @@ pub fn set_click_through(x11_window: Option<u32>, enable: bool) {
                 window_id,
                 0,
                 0,
-                &[],
+                &[xproto::Rectangle {
+                    x: 0,
+                    y: 0,
+                    width: 40000,
+                    height: strip_height_px,
+                }],
             );
         } else {
             let _ = conn.shape_mask(
