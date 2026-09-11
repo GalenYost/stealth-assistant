@@ -105,7 +105,7 @@ impl StealthApp {
             }
 
             if ui
-                .add(egui::Button::new(egui::RichText::new("✕").size(14.0).strong()).frame(false))
+                .add(egui::Button::new(egui::RichText::new("X").size(14.0).strong()).frame(false))
                 .on_hover_text("Close")
                 .clicked()
             {
