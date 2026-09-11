@@ -1,9 +1,11 @@
+use std::mem;
 use std::sync::atomic::{AtomicIsize, Ordering};
 
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    DefWindowProcW, GWLP_WNDPROC, GetWindowLongPtrW, GetWindowRect, HTCLIENT, HTTRANSPARENT,
-    SetWindowDisplayAffinity, SetWindowLongPtrW, WDA_EXCLUDEFROMCAPTURE, WM_NCHITTEST,
+    CallWindowProcW, DefWindowProcW, GWLP_WNDPROC, GetWindowLongPtrW, GetWindowRect, HTCLIENT,
+    HTTRANSPARENT, SetWindowDisplayAffinity, SetWindowLongPtrW, WDA_EXCLUDEFROMCAPTURE,
+    WM_NCHITTEST,
 };
 
 static STRIP_PIXELS: AtomicIsize = AtomicIsize::new(0);
@@ -31,22 +33,20 @@ pub fn set_click_through(hwnd_ptr: isize, enable: bool, topbar_height: f32, pixe
     };
     STRIP_PIXELS.store(strip_pixels, Ordering::Relaxed);
 
-    let subclass =
-        subclass_wnd_proc as unsafe extern "system" fn(HWND, u32, WPARAM, LPARAM) -> LRESULT;
-    let subclass_ptr = subclass as *const () as isize;
-
     unsafe {
         let hwnd = HWND(hwnd_ptr as *mut _);
         let current = GetWindowLongPtrW(hwnd, GWLP_WNDPROC);
         if current == 0 {
             return;
         }
-        if current != subclass_ptr {
+        if current != subclass_wnd_proc as *const () as isize {
             ORIGINAL_WNDPROC.store(current, Ordering::Relaxed);
-            SetWindowLongPtrW(hwnd, GWLP_WNDPROC, subclass_ptr);
+            SetWindowLongPtrW(hwnd, GWLP_WNDPROC, subclass_wnd_proc as *const () as isize);
         }
     }
 }
+
+type SubclassProc = unsafe extern "system" fn(HWND, u32, WPARAM, LPARAM) -> LRESULT;
 
 unsafe extern "system" fn subclass_wnd_proc(
     hwnd: HWND,
@@ -67,5 +67,12 @@ unsafe extern "system" fn subclass_wnd_proc(
             }
         }
     }
-    unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
+
+    let original = ORIGINAL_WNDPROC.load(Ordering::Relaxed);
+    if original != 0 {
+        let original = unsafe { mem::transmute::<isize, SubclassProc>(original) };
+        unsafe { CallWindowProcW(Some(original), hwnd, msg, wparam, lparam) }
+    } else {
+        unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
+    }
 }
