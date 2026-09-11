@@ -25,6 +25,8 @@ pub struct StealthApp {
     pub window_mgr: Option<WindowManager>,
     pub active_tab: ActiveTab,
 
+    last_inner_size: Option<egui::Vec2>,
+
     pub prompt_text: String,
     pub response_text: String,
     pub is_generating: bool,
@@ -58,6 +60,7 @@ impl StealthApp {
             is_generating: false,
             rx_stream: rx,
             tx_stream: tx,
+            last_inner_size: None,
         }
     }
 
@@ -443,6 +446,15 @@ impl StealthApp {
 
 impl eframe::App for StealthApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let inner_size = ui.input(|i| i.viewport().inner_rect.map(|r| r.size()));
+        if inner_size.is_some() && inner_size != self.last_inner_size {
+            self.last_inner_size = inner_size;
+            if let Some(wm) = self.window_mgr.as_mut() {
+                wm.set_topbar_height(TITLEBAR_HEIGHT, ui.pixels_per_point());
+            }
+            ui.ctx().request_repaint();
+        }
+
         let mut received_new = false;
 
         while let Ok(chunk) = self.rx_stream.try_recv() {
